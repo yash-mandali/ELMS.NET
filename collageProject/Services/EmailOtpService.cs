@@ -43,6 +43,7 @@ namespace collageProject.Services
                     EnableSsl = true
                 };
                 await smtp.SendMailAsync(mailMessage);
+                DateTime expiryTime = DateTime.Now.AddMinutes(5);
                 return true;
             }
             

@@ -10,5 +10,7 @@ namespace collageProject.DataContext
 
         }
         public DbSet<User> Users { get; set; }
+        public DbSet<EmailOtp> EmailOtp { get; set; }
+
     }
 }

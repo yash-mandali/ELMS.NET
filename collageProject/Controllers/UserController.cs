@@ -2,12 +2,14 @@
 using collageProject.DataContext;
 using collageProject.Model;
 using collageProject.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity.Data;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System;
 using System.Net;
 using System.Net.Mail;
+using System.Security.Claims;
 
 namespace AngularLoginApi.Controllers
 {
@@ -36,6 +38,8 @@ namespace AngularLoginApi.Controllers
             _email = email;
         }
 
+       
+
         [HttpGet]
         [Route("GetAllUsers")]
         public async Task<IEnumerable<User>> GetAllUsers()
@@ -43,8 +47,59 @@ namespace AngularLoginApi.Controllers
             return await _context.Users.ToListAsync();
         }
 
+        [HttpGet]
+        [Route("GetUserById")]
+        public async Task<IActionResult> GetUserById(int id)
+        {
+            try
+            {
+                var Data = await _context.Users.FindAsync(id);
+                if (Data == null)
+                {
+                    return Ok(new { Message = "Data Not Found", Status = 401, data = new { } });
+                }
+                else
+                {
+                    return Ok(new { Status = 200, Data });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message.ToString(), Status = 401, data = new { } });
+            }
+        }
+
+        //[Authorize]
+        //[HttpGet("getUserprofile")]
+        //public async Task<IActionResult> GetUserProfile()
+        //{
+        //    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        //    if(userIdClaim == null)
+        //    {
+        //        return Unauthorized("Invalid Token");
+        //    }
+        //    int userId = int.Parse(userIdClaim.Value);
+
+        //    var user = await _context.Users.FindAsync(userId);
+
+        //    if (user == null)
+        //    {
+        //        return NotFound("User not found");
+        //    }
+
+        //    var profile = new User
+        //    {
+        //        Id = user.Id,
+        //        UserName = user.UserName,
+        //        Email = user.Email,
+        //        Role = user.Role
+        //    };
+
+        //    return Ok(new {message="UserProfile" ,profile});
+        //}
+
         [HttpPost]
-        [Route("signup")]
+        [Route("AddUser")]
         public async Task<IActionResult> Signup(User users)
         {
             if (!ModelState.IsValid)
@@ -63,13 +118,74 @@ namespace AngularLoginApi.Controllers
 
                 _context.Users.Add(users);
                 await _context.SaveChangesAsync();
-                return Ok(new { message = "signup successfull" });
+                return Ok(new { message = "User Added successfull" });
             }
             catch (Exception)
             {
                 return StatusCode(500, new { message = "Internal server error" });
             }
 
+        }
+
+        [HttpPost]
+        [Route("UpdateUser")]
+        public async Task<IActionResult> UpdateUser(User user, int id)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(new {message = "Invalid model"});
+                }
+                var userid = await _context.Users.FindAsync(id);
+
+                if(userid == null)
+                {
+                    return Ok(new { Message = "UserData Not Found", Status = 401, data = new { } });
+                }
+
+                user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+
+                userid.UserName = user.UserName;
+                userid.Email = user.Email;
+                userid.Password = user.Password;
+                userid.IsUserUpdated = true;
+                userid.UserUpdatedAt = DateTime.Today;
+                
+
+                await _context.SaveChangesAsync();
+                return Ok(new { status = 200, message = "User updated succesfully" });
+                
+            } 
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message.ToString(), Status = 401, data = new { } });
+            }
+           
+        }
+
+        [HttpDelete]
+        [Route("DeleteUser")]
+        public async Task<IActionResult> DeleteUser(int id)
+        {
+            try
+            {
+                var Data = await _context.Users.FindAsync(id);
+                if (Data == null)
+                {
+                    return Ok(new { Message = "Data Not Found", Status = 401 });
+                }
+                else
+                {
+                    _context.Users.Remove(Data);
+                    await _context.SaveChangesAsync();
+                    return Ok(new { Status = 200,message = "User Removed"});
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message.ToString(), Status = 401, data = new { } });
+            }
         }
 
         [HttpPost]
@@ -119,7 +235,7 @@ namespace AngularLoginApi.Controllers
         }
 
         [HttpPost]
-        [Route("forget-password")]
+        [Route("change-password")]
         public async Task<IActionResult> ForgetPassword(string email, string newPassword, string conformPassword)
         {
             //check model
@@ -171,18 +287,28 @@ namespace AngularLoginApi.Controllers
                     {
                         string username = checkUserEmail.UserName;
                         var otp = _email.GenerateOTP();
+
+                        EmailOtp emailOtp = new EmailOtp
+                        {
+                            Email = email,
+                            OtpCode = otp,
+                            ExpiryTime = DateTime.UtcNow.AddMinutes(5)
+                        };
+
+                        _context.EmailOtp.Add(emailOtp);
+                        await _context.SaveChangesAsync();
+
+
                         bool isEmailsent = await _email.sendOtpEmail(email, otp, username);
                         if (isEmailsent)
                         {
-                            return Ok(new { Status = true, message = "OTP sent successfully" });
-
+                            return Ok(new { Status = true, otp, message = "OTP sent successfully" });
                         }
                         else
                         {
                             return StatusCode(500, new { Status = false, message = "Failed to send OTP email" });
                         }
                     }
-
                 }
                 else
                 {
@@ -194,10 +320,51 @@ namespace AngularLoginApi.Controllers
                 return StatusCode(500, new
                 {
                     Status = false,
-                    Error = ex.Message
+                    Error = ex.Message,
+                    Inner = ex.InnerException?.Message
                 });
             }
 
+        }
+
+        [HttpPost]
+        [Route("verifyOtp")]
+        public async Task<IActionResult> verifyOtp(string email,string otp)
+        {
+            try
+            {
+                if (email != "" && otp != "") {
+
+                    var emailOtpCheck = await _context.EmailOtp.Where(e => e.Email == email && e.OtpCode == otp && !e.IsUsed)
+                        .OrderByDescending(e => e.CreatedAt)
+                        .FirstOrDefaultAsync();
+
+                    if (emailOtpCheck == null)
+                    {
+                        return Unauthorized(new { Status = false, Message = "Invalid OTP or already used" });
+                    }
+                    // Check if OTP is expired
+                    if (DateTime.UtcNow > emailOtpCheck.ExpiryTime)
+                    {
+                        return BadRequest(new { Status = false, Message = "OTP has expired" });
+                    }
+
+                    emailOtpCheck.IsUsed = true;
+                    _context.EmailOtp.Update(emailOtpCheck);
+                    await _context.SaveChangesAsync();
+
+                    return Ok(new { Status = true, Message = "OTP verified successfully" });
+                }
+                else
+                {
+                    return BadRequest(new { Status = false, Message = "Email and OTP are required" });
+
+                }
+            } 
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Internal server error" });
+            }
         }
 
 
