@@ -1,9 +1,6 @@
-﻿
-using System.ComponentModel.DataAnnotations;
-
-namespace collageProject.Model
+﻿namespace collageProject.DTO
 {
-    public class User
+    public class UserDto
     {
         public int Id { get; set; }
 
@@ -20,14 +17,6 @@ namespace collageProject.Model
 
         //[Required(ErrorMessage = "role is required")]
         public string Role { get; set; }
-
-        //public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
-
-        public bool IsUserUpdated { get; set; }
-        public DateTime? UserUpdatedAt { get; set; }
-
-        // Navigation Property (1-to-1)
-        public UserProfile UserProfile { get; set; }
 
     }
 }

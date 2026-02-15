@@ -1,5 +1,6 @@
 ﻿using collageProject;
 using collageProject.Data;
+using collageProject.DTO;
 using collageProject.Model;
 using collageProject.Services;
 using Microsoft.AspNetCore.Authorization;

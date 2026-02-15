@@ -35,31 +35,57 @@ namespace collageProject.Controllers
             //     .FirstOrDefaultAsync(x => x.UserId == userId);
 
             var profile = await _context.UserProfiles
-    .AsNoTracking()
-    .Where(x => x.UserId == userId)
-    .Select(x => new UserProfileDto
-    {
-        ProfileId = x.ProfileId,
-        UserId = x.UserId,
-        FullName = x.FullName,
-        Email = x.Email,
-        PhoneNumber = x.PhoneNumber,
-        Address = x.Address,
-        DateOfBirth = x.DateOfBirth,
-        Gender = x.Gender,
-        Department = x.Department,
-        Role = x.Role,
-        ProfileImage = x.ProfileImage,
-        CreatedAt = x.CreatedAt,
-        UpdatedAt = x.UpdatedAt
-    })
-    .FirstOrDefaultAsync();
+                .AsNoTracking()
+                .Where(x => x.UserId == userId)
+                .Select(x => new UserProfileDto
+                {
+                    ProfileId = x.ProfileId,
+                    UserId = x.UserId,
+                    FullName = x.FullName,
+                    Email = x.Email,
+                    PhoneNumber = x.PhoneNumber,
+                    Address = x.Address,
+                    DateOfBirth = x.DateOfBirth,
+                    Gender = x.Gender,
+                    Department = x.Department,
+                    Role = x.Role,
+                    ProfileImage = x.ProfileImage,
+                    CreatedAt = x.CreatedAt,
+                    UpdatedAt = x.UpdatedAt
+                })
+                .FirstOrDefaultAsync();
 
 
             if (profile == null)
                 return NotFound("Profile not found");
 
             return Ok(profile);
+        }
+
+        // =====================================================
+        // 2️⃣ Create Profile (Only Once)
+        // =====================================================
+        // POST: api/UserProfile/create
+        [HttpPost("create")]
+        public async Task<IActionResult> CreateProfile([FromBody] UserProfile model)
+        {
+            // Check if profile already exists
+            var exist = await _context.UserProfiles
+                .AnyAsync(x => x.UserId == model.UserId);
+
+            if (exist)
+                return BadRequest("Profile already exists");
+            model.CreatedAt = DateTime.UtcNow;
+            model.UpdatedAt = DateTime.UtcNow;
+
+            _context.UserProfiles.Add(model);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Profile created successfully",
+                profileId = model.ProfileId
+            });
         }
 
 
