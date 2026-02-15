@@ -1,5 +1,5 @@
 ﻿using collageProject;
-using collageProject.DataContext;
+using collageProject.Data;
 using collageProject.Model;
 using collageProject.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -11,7 +11,7 @@ using System.Net;
 using System.Net.Mail;
 using System.Security.Claims;
 
-namespace AngularLoginApi.Controllers
+namespace collageProject.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
@@ -19,15 +19,13 @@ namespace AngularLoginApi.Controllers
     {
         private readonly AppDbContext _context;
         private readonly GetJwtToken _getToken;
-        private readonly IConfiguration _configuration;
-        //private readonly GeminiService _gemini;
+        private readonly IConfiguration _configuration;      
         public readonly EmailOtpService _email;
 
         public UserController
             (AppDbContext context,
             IConfiguration configuration,
             GetJwtToken getToken,
-            //GeminiService gemini,
             EmailOtpService email
             )
         {
@@ -226,7 +224,7 @@ namespace AngularLoginApi.Controllers
                 var Token = _getToken.GenerateJwtToken(users);
 
                 //return Ok(new { message = "Login successfull" });
-                return Ok(new { message = "Login successfull", token = Token, role = user.Role });
+                return Ok(new { message = "Login successfull", token = Token, role = user.Role, userId = user.Id });
             }
             catch (Exception)
             {
@@ -295,7 +293,7 @@ namespace AngularLoginApi.Controllers
                             ExpiryTime = DateTime.UtcNow.AddMinutes(5)
                         };
 
-                        _context.EmailOtp.Add(emailOtp);
+                        _context.EmailOtps.Add(emailOtp);
                         await _context.SaveChangesAsync();
 
 
@@ -335,7 +333,7 @@ namespace AngularLoginApi.Controllers
             {
                 if (email != "" && otp != "") {
 
-                    var emailOtpCheck = await _context.EmailOtp.Where(e => e.Email == email && e.OtpCode == otp && !e.IsUsed)
+                    var emailOtpCheck = await _context.EmailOtps.Where(e => e.Email == email && e.OtpCode == otp && !e.IsUsed)
                         .OrderByDescending(e => e.CreatedAt)
                         .FirstOrDefaultAsync();
 
@@ -350,7 +348,7 @@ namespace AngularLoginApi.Controllers
                     }
 
                     emailOtpCheck.IsUsed = true;
-                    _context.EmailOtp.Update(emailOtpCheck);
+                    _context.EmailOtps.Update(emailOtpCheck);
                     await _context.SaveChangesAsync();
 
                     return Ok(new { Status = true, Message = "OTP verified successfully" });
@@ -366,6 +364,8 @@ namespace AngularLoginApi.Controllers
                 return StatusCode(500, new { message = "Internal server error" });
             }
         }
+
+
 
 
 

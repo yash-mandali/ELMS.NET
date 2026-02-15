@@ -1,6 +1,6 @@
 
 using collageProject;
-using collageProject.DataContext;
+using collageProject.Data;
 using collageProject.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;

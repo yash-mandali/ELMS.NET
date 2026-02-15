@@ -1,6 +1,21 @@
-﻿namespace collageProject.Controllers
+﻿using collageProject.Data;
+using collageProject.Services;
+using Microsoft.AspNetCore.Mvc;
+
+namespace collageProject.Controllers
 {
-    public class RequestController
+
+    [Route("api/[controller]")]
+    [ApiController]
+    public class RequestController : Controller
     {
+        private readonly AppDbContext _context;
+        private readonly IConfiguration _configuration;
+        public RequestController(AppDbContext context,
+            IConfiguration configuration)
+        {
+            _context = context;
+            _configuration = configuration;
+        }
     }
 }
