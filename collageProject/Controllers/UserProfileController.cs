@@ -66,17 +66,34 @@ namespace collageProject.Controllers
         // 2️⃣ Create Profile (Only Once)
         // =====================================================
         // POST: api/UserProfile/create
-        [HttpPost("create")]
+        [HttpPost("createProfile")]
         public async Task<IActionResult> CreateProfile([FromBody] UserProfile model)
         {
+
+            var user = await _context.Users
+                .Where(u => u.Id == model.UserId)
+                .Select(u => new { u.Email, u.Role })
+                .FirstOrDefaultAsync();
+
+            if (user == null)
+            {
+                return NotFound("User not found");
+            }
+
+
             // Check if profile already exists
             var exist = await _context.UserProfiles
-                .AnyAsync(x => x.UserId == model.UserId);
+                .AnyAsync(x => x.UserId == model.UserId && x.Email == model.Email);
 
-            if (exist)
+            if (exist) {
                 return BadRequest("Profile already exists");
+            }
+
+            model.Email = user.Email;
+            model.Role = user.Role;
+
             model.CreatedAt = DateTime.UtcNow;
-            model.UpdatedAt = DateTime.UtcNow;
+            
 
             _context.UserProfiles.Add(model);
             await _context.SaveChangesAsync();
@@ -88,6 +105,31 @@ namespace collageProject.Controllers
             });
         }
 
+
+        //[HttpPut("updateProfile/{userId}")]
+        //public async Task<IActionResult> UpdateProfile([FromRoute]int userId, [FromBody] UserProfile model)
+        //{
+        //    if (model == null)
+        //        return BadRequest("Invalid profile data");
+
+        //    var profile = await _context.UserProfiles
+        //        .FirstOrDefaultAsync(x => x.UserId == userId);
+
+        //    if (profile == null)
+        //        return NotFound("Profile not found");
+
+        //    profile.FullName = model.FullName;
+        //    profile.PhoneNumber = model.PhoneNumber;
+        //    profile.Address = model.Address;
+        //    profile.DateOfBirth = model.DateOfBirth;
+        //    profile.Gender = model.Gender;
+        //    profile.Department = model.Department;
+        //    profile.UpdatedAt = DateTime.UtcNow;
+
+        //    await _context.SaveChangesAsync();
+
+        //    return Ok("Profile updated successfully");
+        //}
 
     }
 }

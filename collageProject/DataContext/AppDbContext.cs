@@ -87,20 +87,25 @@ namespace collageProject.Data
             });
 
 
+
+
             // =====================================
             // EMAIL OTP CONFIGURATION
             // =====================================
+            
+            modelBuilder.Entity<EmailOtp>().ToTable("EmailOtp");
 
-            modelBuilder.Entity<EmailOtp>(entity =>
-            {
-                entity.HasKey(o => o.Id);
 
-                entity.Property(o => o.Email)
-                      .IsRequired();
+            //modelBuilder.Entity<EmailOtp>(entity =>
+            //{
+            //    entity.HasKey(o => o.Id);
 
-                entity.Property(o => o.OtpCode)
-                      .IsRequired();
-            });
+            //    entity.Property(o => o.Email)
+            //          .IsRequired();
+
+            //    entity.Property(o => o.OtpCode)
+            //          .IsRequired();
+            //});
 
 
             // =====================================

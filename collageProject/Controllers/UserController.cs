@@ -68,6 +68,28 @@ namespace collageProject.Controllers
             }
         }
 
+        [HttpGet]
+        [Route("GetUserByEmail")]
+        public async Task<IActionResult> GetUserByEmail(string email)
+        {
+            try
+            {
+                var Data = await _context.Users.FindAsync(email);
+                if (Data == null)
+                {
+                    return Ok(new { Message = "Data Not Found", Status = 401, data = new { } });
+                }
+                else
+                {
+                    return Ok(new { Status = 200, Data });
+                }
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { Message = ex.Message.ToString(), Status = 401, data = new { } });
+            }
+        }
+
         //[Authorize]
         //[HttpGet("getUserprofile")]
         //public async Task<IActionResult> GetUserProfile()
@@ -99,7 +121,7 @@ namespace collageProject.Controllers
 
         [HttpPost]
         [Route("AddUser")]
-        public async Task<IActionResult> Signup(User users)
+        public async Task<IActionResult> Signup(AddUser users)
         {
             if (!ModelState.IsValid)
             {
@@ -107,15 +129,24 @@ namespace collageProject.Controllers
             }
             try
             {
-                var user = _context.Users.Where(u => (u.Email == users.Email)).FirstOrDefault();
-                if (user != null)
+                var userEmail = _context.Users.Where(u => (u.Email == users.Email)).FirstOrDefault();
+                if (userEmail != null)
                 {
                     return Conflict(new { message = "User already exists" });
                 }
+                var user = new User
+                {
+                    UserName = users.UserName,
+                    Email = users.Email,
+                    Password = BCrypt.Net.BCrypt.HashPassword(users.Password),
+                    Role = users.Role,
+                    IsUserUpdated = false,
+                    UserUpdatedAt = null,
+                    CreatedAt = DateTime.Now,
+                };
+               
 
-                users.Password = BCrypt.Net.BCrypt.HashPassword(users.Password);
-
-                _context.Users.Add(users);
+                _context.Users.Add(user);
                 await _context.SaveChangesAsync();
                 return Ok(new { message = "User Added successfull" });
             }
@@ -128,7 +159,7 @@ namespace collageProject.Controllers
 
         [HttpPost]
         [Route("UpdateUser")]
-        public async Task<IActionResult> UpdateUser(User user, int id)
+        public async Task<IActionResult> UpdateUser(UpdateUser user, int id)
         {
             try
             {
@@ -143,15 +174,14 @@ namespace collageProject.Controllers
                     return Ok(new { Message = "UserData Not Found", Status = 401, data = new { } });
                 }
 
-                user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
+                //user.Password = BCrypt.Net.BCrypt.HashPassword(user.Password);
 
                 userid.UserName = user.UserName;
                 userid.Email = user.Email;
-                userid.Password = user.Password;
+                //userid.Password = user.Password;
                 userid.IsUserUpdated = true;
                 userid.UserUpdatedAt = DateTime.Today;
                 
-
                 await _context.SaveChangesAsync();
                 return Ok(new { status = 200, message = "User updated succesfully" });
                 
@@ -202,30 +232,30 @@ namespace collageProject.Controllers
                 {
                     return Unauthorized(new { message = "Invalid email" });
                 }
-
-                if (user.Role != users.Role)
+                if (user!=null)
                 {
-                    return Unauthorized(new { message = "Authentication failed" });
+                    if (user.Role != users.Role)
+                    {
+                        return Unauthorized(new { message = "Authentication failed" });
+                    }
+
+                    bool isPasswordValid = BCrypt.Net.BCrypt.Verify(users.Password, user.Password);
+
+                    if (!isPasswordValid)
+                    {
+                        return Unauthorized(new { message = "Invalid  password" });
+                            
+                    }
+
+                    var Token = _getToken.GenerateJwtToken(users);
+
+                    //return Ok(new { message = "Login successfull" });
+                    return Ok(new { message = "Login successfull", token = Token, role = user.Role });
                 }
-
-                //----------- or ----------------
-
-                //if (!string.Equals(user.Role, users.Role, StringComparison.OrdinalIgnoreCase))
-                //{
-                //    return Unauthorized(new { message = "Authentication failed" });
-                //}
-
-                bool isPasswordValid = BCrypt.Net.BCrypt.Verify(users.Password, user.Password);
-
-                if (!isPasswordValid)
+                else
                 {
-                    return Unauthorized(new { message = "Invalid  password" });
-
-                }
-                var Token = _getToken.GenerateJwtToken(users);
-
-                //return Ok(new { message = "Login successfull" });
-                return Ok(new { message = "Login successfull", token = Token, role = user.Role, userId = user.Id });
+                    return Ok(new { message = "Invalid User" });
+                }   
             }
             catch (Exception)
             {
@@ -291,7 +321,9 @@ namespace collageProject.Controllers
                         {
                             Email = email,
                             OtpCode = otp,
-                            ExpiryTime = DateTime.UtcNow.AddMinutes(5)
+                            ExpiryTime = DateTime.UtcNow.AddMinutes(5), 
+                            IsUsed= true,
+                            CreatedAt = DateTime.UtcNow
                         };
 
                         _context.EmailOtps.Add(emailOtp);
@@ -310,7 +342,7 @@ namespace collageProject.Controllers
                     }
                 }
                 else
-                {
+                {   
                     return Ok(new { message = "please enter email id" });
                 }
             }
