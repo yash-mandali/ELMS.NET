@@ -265,7 +265,7 @@ namespace collageProject.Controllers
 
         [HttpPost]
         [Route("change-password")]
-        public async Task<IActionResult> ForgetPassword(string email, string newPassword, string conformPassword)
+        public async Task<IActionResult> ForgetPassword([FromBody] changePassword model)
         {
             //check model
             if (!ModelState.IsValid)
@@ -276,18 +276,18 @@ namespace collageProject.Controllers
             try
             {
                 //check email 
-                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+                var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == model.Email);
                 if (user == null)
                 {
                     return Unauthorized(new { message = "Invalid email" });
                 }
 
-                if (newPassword != conformPassword)
+                if (model.NewPassword != model.ConfirmPassword)
                 {
                     return BadRequest(new { message = "Password does not match" });
                 }
 
-                user.Password = BCrypt.Net.BCrypt.HashPassword(newPassword);
+                user.Password = BCrypt.Net.BCrypt.HashPassword(model.NewPassword);
 
                 _context.Users.Update(user);
                 await _context.SaveChangesAsync();
@@ -295,108 +295,148 @@ namespace collageProject.Controllers
             }
             catch
             {
-                return StatusCode(500, new { message = "Internal server error" });
+                return StatusCode(500, new { message = "Internal server error from .net" });
             }
         }
 
-        [HttpPost]
-        [Route("EmailOtp")]
-        public async Task<IActionResult> sendOtpEmail(string email)
-        {
-            try 
-            {
-                if (email != "")
-                {
-                    var checkUserEmail = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
-                    if (checkUserEmail == null)
-                    {
-                        return Unauthorized(new { message = "Invalid email" });
-                    }
-                    else
-                    {
-                        string username = checkUserEmail.UserName;
-                        var otp = _email.GenerateOTP();
+        //[HttpPost]
+        //[Route("EmailOtp")]
+        //public async Task<IActionResult> sendOtpEmail(string email)
+        //{
+        //    try 
+        //    {
+        //        if (email != "")
+        //        {
+        //            var checkUserEmail = await _context.Users.FirstOrDefaultAsync(u => u.Email == email);
+        //            if (checkUserEmail == null)
+        //            {
+        //                return Unauthorized(new { message = "Invalid email" });
+        //            }
+        //            else
+        //            {
+        //                string username = checkUserEmail.UserName;
+        //                var otp = _email.GenerateOTP();
 
-                        EmailOtp emailOtp = new EmailOtp
-                        {
-                            Email = email,
-                            OtpCode = otp,
-                            ExpiryTime = DateTime.UtcNow.AddMinutes(5), 
-                            IsUsed= true,
-                            CreatedAt = DateTime.UtcNow
-                        };
+        //                EmailOtp emailOtp = new EmailOtp
+        //                {
+        //                    Email = email,
+        //                    OtpCode = otp,
+        //                    ExpiryTime = DateTime.UtcNow.AddMinutes(5), 
 
-                        _context.EmailOtps.Add(emailOtp);
-                        await _context.SaveChangesAsync();
+        //                };
+
+        //                _context.EmailOtps.Add(emailOtp);
+        //                await _context.SaveChangesAsync();
 
 
-                        bool isEmailsent = await _email.sendOtpEmail(email, otp, username);
-                        if (isEmailsent)
-                        {
-                            return Ok(new { Status = true, otp, message = "OTP sent successfully" });
-                        }
-                        else
-                        {
-                            return StatusCode(500, new { Status = false, message = "Failed to send OTP email" });
-                        }
-                    }
-                }
-                else
-                {   
-                    return Ok(new { message = "please enter email id" });
-                }
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, new
-                {
-                    Status = false,
-                    Error = ex.Message,
-                    Inner = ex.InnerException?.Message
-                });
-            }
+        //                bool isEmailsent = await _email.sendOtpEmail(email, otp, username);
+        //                if (isEmailsent)
+        //                {
+        //                    return Ok(new { Status = true, otp, message = "OTP sent successfully" });
+        //                }
+        //                else
+        //                {
+        //                    return StatusCode(500, new { Status = false, message = "Failed to send OTP email" });
+        //                }
+        //            }
+        //        }
+        //        else
+        //        {   
+        //            return Ok(new { message = "please enter email id" });
+        //        }
+        //    }
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new
+        //        {
+        //            Status = false,
+        //            Error = ex.Message,
+        //            Inner = ex.InnerException?.Message
+        //        });
+        //    }
 
-        }
+        //}
 
-        [HttpPost]
-        [Route("verifyOtp")]
-        public async Task<IActionResult> verifyOtp(string email,string otp)
+        [HttpPost("EmailOtp")]
+        public async Task<IActionResult> SendOtpEmail([FromBody] EmailRequest request)
         {
             try
             {
-                if (email != "" && otp != "") {
+                if (string.IsNullOrEmpty(request.Email))
+                    return BadRequest(new { message = "Email is required" });
 
-                    var emailOtpCheck = await _context.EmailOtps.Where(e => e.Email == email && e.OtpCode == otp && !e.IsUsed)
-                        .OrderByDescending(e => e.CreatedAt)
-                        .FirstOrDefaultAsync();
+                var checkUserEmail = await _context.Users
+                    .FirstOrDefaultAsync(u => u.Email == request.Email);
 
-                    if (emailOtpCheck == null)
-                    {
-                        return Unauthorized(new { Status = false, Message = "Invalid OTP or already used" });
-                    }
-                    // Check if OTP is expired
-                    if (DateTime.UtcNow > emailOtpCheck.ExpiryTime)
-                    {
-                        return BadRequest(new { Status = false, Message = "OTP has expired" });
-                    }
+                if (checkUserEmail == null)
+                    return Unauthorized(new { message = "Invalid email" });
 
-                    emailOtpCheck.IsUsed = true;
-                    _context.EmailOtps.Update(emailOtpCheck);
-                    await _context.SaveChangesAsync();
+                string username = checkUserEmail.UserName;
+                var otp = _email.GenerateOTP();
 
-                    return Ok(new { Status = true, Message = "OTP verified successfully" });
-                }
-                else
+                EmailOtp emailOtp = new EmailOtp
                 {
-                    return BadRequest(new { Status = false, Message = "Email and OTP are required" });
+                    Email = request.Email,
+                    OtpCode = otp,
+                    ExpiryTime = DateTime.UtcNow.AddMinutes(5)
+                };
 
-                }
-            } 
+                _context.EmailOtps.Add(emailOtp);
+                await _context.SaveChangesAsync();
+
+                bool isEmailSent = await _email.sendOtpEmail(request.Email, otp, username);
+
+                if (!isEmailSent)
+                    return StatusCode(500, new { message = "Failed to send OTP" });
+
+                return Ok(new { message = "OTP sent successfully",otp });
+            }
             catch (Exception ex)
             {
-                return StatusCode(500, new { message = "Internal server error" });
+                return StatusCode(500, new { error = ex.Message });
             }
         }
+
+
+        //[HttpPost]
+        //[Route("verifyOtp")]
+        //public async Task<IActionResult> verifyOtp(string email,string otp)
+        //{
+        //    try
+        //    {
+        //        if (email != "" && otp != "") {
+
+        //            var emailOtpCheck = await _context.EmailOtps.Where(e => e.Email == email && e.OtpCode == otp && !e.IsUsed)
+        //                .OrderByDescending(e => e.CreatedAt)
+        //                .FirstOrDefaultAsync();
+
+        //            if (emailOtpCheck == null)
+        //            {
+        //                return Unauthorized(new { Status = false, Message = "Invalid OTP or already used" });
+        //            }
+        //            // Check if OTP is expired
+        //            if (DateTime.UtcNow > emailOtpCheck.ExpiryTime)
+        //            {
+        //                return BadRequest(new { Status = false, Message = "OTP has expired" });
+        //            }
+
+        //            emailOtpCheck.IsUsed = true;
+        //            _context.EmailOtps.Update(emailOtpCheck);
+        //            await _context.SaveChangesAsync();
+
+        //            return Ok(new { Status = true, Message = "OTP verified successfully" });
+        //        }
+        //        else
+        //        {
+        //            return BadRequest(new { Status = false, Message = "Email and OTP are required" });
+
+        //        }
+        //    } 
+        //    catch (Exception ex)
+        //    {
+        //        return StatusCode(500, new { message = "Internal server error", Inner = ex.InnerException?.Message });
+        //    }
+        //}
 
 
 
@@ -417,6 +457,71 @@ namespace collageProject.Controllers
         //    await _email.sendEmail(emailModel.Email, emailModel.Message);
         //    return Ok(new { message = "Email sent..." });
         //}
+
+        [HttpPost("verifyOtp")]
+        public async Task<IActionResult> VerifyOtp([FromBody] EmaillVerify request)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(request.Email) ||
+                    string.IsNullOrWhiteSpace(request.OtpCode))
+                {
+                    return BadRequest(new
+                    {
+                        Status = false,
+                        Message = "Email and OTP are required"
+                    });
+                }
+
+                var emailOtpCheck = await _context.EmailOtps
+                    .Where(e => e.Email == request.Email &&
+                                e.OtpCode == request.OtpCode &&
+                                !e.IsUsed)
+                    .OrderByDescending(e => e.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                if (emailOtpCheck == null)
+                {
+                    return Unauthorized(new
+                    {
+                        Status = false,
+                        Message = "Invalid OTP"
+                    });
+                }
+
+                if (DateTime.UtcNow > emailOtpCheck.ExpiryTime)
+                {
+                    return BadRequest(new
+                    {
+                        Status = false,
+                        Message = "OTP has expired"
+                    });
+                }
+
+                emailOtpCheck.IsUsed = true;
+                emailOtpCheck.UsedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync();
+
+                return Ok(new
+                {
+                    Status = true,
+                    Message = "OTP verified successfully"
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new
+                {
+                    Status = false,
+                    Message = ex.Message,
+                    Inner = ex.InnerException?.Message,
+                    Stack = ex.StackTrace
+                });
+            }
+
+        }
+
 
     }
 }
