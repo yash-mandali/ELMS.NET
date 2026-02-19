@@ -20,10 +20,7 @@ namespace collageProject.Controllers
             _env = env;
         }
 
-        // =====================================================
-        // 1️⃣ Get Profile By UserId
-        // =====================================================
-        // GET: api/UserProfile/get/5
+       
         [HttpGet("getProfileById")]
         public async Task<IActionResult> GetProfile([FromQuery] int userId)
         {
@@ -62,13 +59,12 @@ namespace collageProject.Controllers
             return Ok(profile);
         }
 
-        // =====================================================
-        // 2️⃣ Create Profile (Only Once)
-        // =====================================================
-        // POST: api/UserProfile/create
+     
         [HttpPost("createProfile")]
         public async Task<IActionResult> CreateProfile([FromBody] UserProfile model)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
 
             var user = await _context.Users
                 .Where(u => u.Id == model.UserId)
@@ -83,7 +79,7 @@ namespace collageProject.Controllers
 
             // Check if profile already exists
             var exist = await _context.UserProfiles
-                .AnyAsync(x => x.UserId == model.UserId && x.Email == model.Email);
+                .AnyAsync(x => x.UserId == model.UserId);
 
             if (exist) {
                 return BadRequest("Profile already exists");
@@ -91,8 +87,8 @@ namespace collageProject.Controllers
 
             model.Email = user.Email;
             model.Role = user.Role;
-
             model.CreatedAt = DateTime.UtcNow;
+            model.UpdatedAt = null;
             
 
             _context.UserProfiles.Add(model);
@@ -104,6 +100,56 @@ namespace collageProject.Controllers
                 profileId = model.ProfileId
             });
         }
+
+        [HttpPut("updateProfile")]
+        public async Task<IActionResult> UpdateProfile(int id, UpdateUserProfile model)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ModelState);
+
+            // Get existing profile
+            var profile = await _context.UserProfiles
+                .FirstOrDefaultAsync(x => x.UserId == id);
+
+            if (profile == null)
+                return NotFound("Profile not found");
+
+            // Update allowed fields ONLY
+            profile.FullName = model.FullName;
+            profile.PhoneNumber = model.PhoneNumber;
+            profile.Address = model.Address;
+            profile.DateOfBirth = model.DateOfBirth;
+            profile.Gender = model.Gender;
+            profile.Department = model.Department;
+            profile.ProfileImage = model.ProfileImage;
+            profile.UpdatedAt = DateTime.UtcNow;
+
+            _context.UserProfiles.Update(profile);
+            await _context.SaveChangesAsync();
+
+            return Ok(new
+            {
+                message = "Profile updated successfully",
+                profileId = profile.ProfileId
+            });
+        }
+
+        [HttpDelete("deleteProfile")]
+        public async Task<IActionResult> DeleteProfile(int userId)
+        {
+            var profile = await _context.UserProfiles
+                .FirstOrDefaultAsync(x => x.UserId == userId);
+
+            if (profile == null)
+                return NotFound("Profile not found");
+
+            _context.UserProfiles.Remove(profile);
+            await _context.SaveChangesAsync();
+
+            return Ok(new {message = "Profile deleted" });
+        }
+
+
 
 
         //[HttpPut("updateProfile/{userId}")]

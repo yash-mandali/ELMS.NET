@@ -22,6 +22,19 @@ namespace collageProject.Model
         public DateTime? UpdatedAt { get; set; }
         public User? User { get; set; }
     }
+
+    public class UpdateUserProfile {
+        public string FullName { get; set; } = null!;
+        public string? PhoneNumber { get; set; }
+        public string? Address { get; set; }
+        [Column(TypeName = "date")]
+        public DateTime? DateOfBirth { get; set; }
+        public string? Gender { get; set; }
+        public string? Department { get; set; }
+        public string? ProfileImage { get; set; }
+        public DateTime? UpdatedAt { get; set; }
+    }
+
 }
 
 
