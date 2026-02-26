@@ -1,8 +1,9 @@
 ﻿using collageProject.Data;
-using collageProject.Model;
 using collageProject.DTO;
+using collageProject.Model;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace collageProject.Controllers
 {
@@ -38,16 +39,26 @@ namespace collageProject.Controllers
                 {
                     ProfileId = x.ProfileId,
                     UserId = x.UserId,
+                    Employee_Id = x.Employee_Id,
                     FullName = x.FullName,
                     Email = x.Email,
                     PhoneNumber = x.PhoneNumber,
+                    Emergency_Phone = x.Emergency_Phone,
                     Address = x.Address,
                     DateOfBirth = x.DateOfBirth,
                     Gender = x.Gender,
                     Department = x.Department,
+                    Designation = x.Designation,
+                    Work_Email = x.Work_Email,
+                    Employment_Type = x.Employment_Type,
+                    Work_Location = x.Work_Location,
+                    Work_Time = x.Work_Time,
+                    Manager = x.Manager,
+                    Experience = x.Experience,
                     Role = x.Role,
                     ProfileImage = x.ProfileImage,
                     CreatedAt = x.CreatedAt,
+                    Joining_date = x.Joining_date,
                     UpdatedAt = x.UpdatedAt
                 })
                 .FirstOrDefaultAsync();
@@ -81,14 +92,19 @@ namespace collageProject.Controllers
             var exist = await _context.UserProfiles
                 .AnyAsync(x => x.UserId == model.UserId);
 
+            //int userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier).Value);  //for taking userid from jwt token 
+
             if (exist) {
                 return BadRequest("Profile already exists");
             }
+
+            var employeeId = await GenerateEmployeeId();
 
             model.Email = user.Email;
             model.Role = user.Role;
             model.CreatedAt = DateTime.UtcNow;
             model.UpdatedAt = null;
+            model.Employee_Id = employeeId;
             
 
             _context.UserProfiles.Add(model);
@@ -117,10 +133,17 @@ namespace collageProject.Controllers
             // Update allowed fields ONLY
             profile.FullName = model.FullName;
             profile.PhoneNumber = model.PhoneNumber;
+            profile.Emergency_Phone = model.Emergency_Phone;
+            profile.Work_Email = model.Work_Email;
             profile.Address = model.Address;
             profile.DateOfBirth = model.DateOfBirth;
             profile.Gender = model.Gender;
             profile.Department = model.Department;
+            profile.Designation = model.Designation;
+            profile.Employment_Type = model.Employment_Type;
+            profile.Work_Location = model.Work_Location;
+            profile.Work_Time = model.Work_Time;
+            profile.Experience = model.Experience;
             profile.ProfileImage = model.ProfileImage;
             profile.UpdatedAt = DateTime.UtcNow;
 
@@ -177,5 +200,35 @@ namespace collageProject.Controllers
         //    return Ok("Profile updated successfully");
         //}
 
+
+        private async Task<string> GenerateEmployeeId()
+        {
+            var year = DateTime.Now.Year;
+
+            // Get last employee of current year
+            var lastEmployee = await _context.UserProfiles
+                .Where(x => x.Employee_Id != null && x.Employee_Id.Contains($"EMP-{year}-"))
+                .OrderByDescending(x => x.Employee_Id)
+                .FirstOrDefaultAsync();
+
+            int nextNumber = 1;
+
+            if (lastEmployee != null)
+            {
+                var lastNumber = lastEmployee.Employee_Id
+                    .Split('-')
+                    .Last();
+
+                nextNumber = int.Parse(lastNumber) + 1;
+            }
+
+            return $"EMP-{year}-{nextNumber.ToString("D3")}";
+        }
     }
+
+
+
+
 }
+
+

@@ -37,8 +37,6 @@ namespace collageProject.Controllers
             _email = email;
         }
 
-       
-
         [HttpGet]
         [Route("GetAllUsers")]
         public async Task<IEnumerable<User>> GetAllUsers()
@@ -247,10 +245,10 @@ namespace collageProject.Controllers
                             
                     }
 
-                    var Token = _getToken.GenerateJwtToken(users);
+                    var Token = _getToken.GenerateJwtToken(user);
 
                     //return Ok(new { message = "Login successfull" });
-                    return Ok(new { message = "Login successfull", token = Token, role = user.Role });
+                    return Ok(new { message = "Login successfull", token = Token, role = user.Role, userId = user.Id});
                 }
                 else
                 {

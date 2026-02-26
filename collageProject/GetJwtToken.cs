@@ -14,7 +14,7 @@ namespace collageProject
         {
             _config = config;
         }
-        public string GenerateJwtToken(Login users)
+        public string GenerateJwtToken(User users)
         {
             var claims = new[]
             {

@@ -26,10 +26,10 @@ namespace collageProject.Model
         public bool IsUserUpdated { get; set; }
         public DateTime? UserUpdatedAt { get; set; }
 
-        public DateTime CreatedAt { get; set; }
+        public DateTime? CreatedAt { get; set; }
 
         // Navigation Property (1-to-1)
-        public UserProfile UserProfile { get; set; }
+        public UserProfile? UserProfile { get; set; }
 
     }
 

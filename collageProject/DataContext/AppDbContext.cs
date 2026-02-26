@@ -10,15 +10,12 @@ namespace collageProject.Data
         {
         }
 
-        // ================================
-        // DB TABLES
-        // ================================
-
         public DbSet<User> Users { get; set; }
 
         public DbSet<UserProfile> UserProfiles { get; set; }
 
         public DbSet<EmailOtp> EmailOtps { get; set; }
+        public DbSet<Requests> LeaveRequests { get; set; }
 
 
 
@@ -26,9 +23,6 @@ namespace collageProject.Data
         {
             base.OnModelCreating(modelBuilder);
 
-            // =====================================
-            // USER TABLE CONFIGURATION
-            // =====================================
 
             modelBuilder.Entity<User>(entity =>
             {
@@ -48,13 +42,20 @@ namespace collageProject.Data
             });
 
 
-            // =====================================
-            // USER PROFILE CONFIGURATION
-            // =====================================
-
             modelBuilder.Entity<UserProfile>(entity =>
             {
                 entity.HasKey(p => p.ProfileId);
+
+                entity.Property(p => p.Employee_Id);
+                entity.Property(p => p.Emergency_Phone);
+                entity.Property(p => p.DateOfBirth);
+                entity.Property(p => p.Designation);
+                entity.Property(p => p.Work_Email);
+                entity.Property(p => p.Employment_Type);
+                entity.Property(p => p.Work_Location);
+                entity.Property(p => p.Work_Time);
+                entity.Property(p => p.Manager);
+                entity.Property(p => p.Experience); 
 
                 entity.Property(p => p.FullName)
                       .HasMaxLength(100)
@@ -85,41 +86,69 @@ namespace collageProject.Data
                 entity.Property(p => p.CreatedAt)
                       .HasDefaultValueSql("GETUTCDATE()");
             });
-
-
-
-
-            // =====================================
-            // EMAIL OTP CONFIGURATION
-            // =====================================
-            
+ 
             modelBuilder.Entity<EmailOtp>().ToTable("EmailOtp");
 
+            modelBuilder.Entity<Requests>(entity =>
+            {
 
-            //modelBuilder.Entity<EmailOtp>(entity =>
-            //{
-            //    entity.HasKey(o => o.Id);
+                entity.HasKey(r => r.LeaveRequestId);
 
-            //    entity.Property(o => o.Email)
-            //          .IsRequired();
+                entity.Property(r => r.RequestType)
+                      .HasMaxLength(50);
 
-            //    entity.Property(o => o.OtpCode)
-            //          .IsRequired();
-            //});
+                entity.Property(r => r.Session)
+                      .HasMaxLength(20);
+
+                entity.Property(r => r.Reason)
+                      .HasMaxLength(250);
+
+                entity.Property(r => r.HandoverTo)
+                      .HasMaxLength(100);
+
+                entity.Property(r => r.Status)
+                      .HasMaxLength(20)
+                      .HasDefaultValue("Pending");
+
+                entity.Property(r => r.FromDate)
+                      .HasColumnType("date");
+
+                entity.Property(r => r.ToDate)
+                      .HasColumnType("date");
+
+                entity.Property(r => r.AppliedOn)
+                      .HasDefaultValueSql("GETDATE()");
 
 
-            // =====================================
-            // USER ↔ USERPROFILE RELATION (1-to-1)
-            // =====================================
+                // ==========================
+                // RELATIONSHIP (FK)
+                // User → Profile → Requests
+                // ==========================
+
+                entity.HasOne(r => r.UserProfile)
+                      .WithMany()
+                      .HasForeignKey(r => r.UserId)
+                      .HasPrincipalKey(p => p.UserId)
+                      .OnDelete(DeleteBehavior.Restrict);
+            });
+
+
 
             modelBuilder.Entity<User>()
                 .HasOne(u => u.UserProfile)
                 .WithOne(p => p.User)
                 .HasForeignKey<UserProfile>(p => p.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+         
+            modelBuilder.Entity<Requests>()
+                .HasOne(r => r.UserProfile)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .HasPrincipalKey(p => p.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
 
 
-            // Prevent duplicate profiles per user
+          
             modelBuilder.Entity<UserProfile>()
                 .HasIndex(p => p.UserId)
                 .IsUnique();
