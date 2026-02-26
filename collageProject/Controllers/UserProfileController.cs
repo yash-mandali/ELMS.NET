@@ -65,7 +65,7 @@ namespace collageProject.Controllers
 
 
             if (profile == null)
-                return NotFound("Profile not found");
+                return NotFound(new { message = "Profile not found" });
 
             return Ok(profile);
         }
@@ -87,7 +87,6 @@ namespace collageProject.Controllers
                 return NotFound("User not found");
             }
 
-
             // Check if profile already exists
             var exist = await _context.UserProfiles
                 .AnyAsync(x => x.UserId == model.UserId);
@@ -99,11 +98,13 @@ namespace collageProject.Controllers
             }
 
             var employeeId = await GenerateEmployeeId();
+     
 
             model.Email = user.Email;
             model.Role = user.Role;
             model.CreatedAt = DateTime.UtcNow;
             model.UpdatedAt = null;
+            model.ProfileImage = null;
             model.Employee_Id = employeeId;
             
 
